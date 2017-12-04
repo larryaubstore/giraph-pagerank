@@ -10,6 +10,9 @@ import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.log4j.Logger;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
  
 import java.io.IOException;
  
@@ -21,27 +24,37 @@ public class PageRank extends BasicComputation<
   @Override
   public void compute(Vertex<Text, DoubleWritable, DoubleWritable> vertex, 
       Iterable<DoubleWritable> messages) throws IOException {
+
+
    
-    System.out.println("STEP => " + getSuperstep());
-    //System.out.print("total vertices ==> " + getTotalNumVertices());
-    if (getSuperstep() >= 1) {
+    //System.out.println("STEP => " + getSuperstep());
+    if (getSuperstep() == 0) {
+      //if (vertex.getId().toString().indexOf("https://fr.wikipedia.org/wiki/Philippe_Couillard") > -1) {
+      //  System.out.println("edges phil ==> " + vertex.getNumEdges()); 
+      //}
+      vertex.setValue(new DoubleWritable(1 / getTotalNumVertices()));
+    } else {
       double sum = 0;
       for (DoubleWritable message : messages) {
         sum += message.get();
       }
-      vertex.setValue(new DoubleWritable(0.15 / getTotalNumVertices() + 0.85 * sum));
-
+      vertex.setValue(new DoubleWritable(0.01 / getTotalNumVertices() + 0.99 * sum));
     }
 
     if (getSuperstep() < MAX_SUPERSTEPS) {
-      int numEdges = vertex.getNumEdges();
-      DoubleWritable message = new DoubleWritable(vertex.getValue().get() / numEdges);
-      for (Edge<Text, DoubleWritable> edge: vertex.getEdges()) {
-        //System.out.print(" " + edge.getTargetVertexId());
-        //System.out.print("numEdges => " + numEdges);
-        sendMessage(edge.getTargetVertexId(), message);
-      }
+       int numEdges = vertex.getNumEdges();
+       DoubleWritable message = new DoubleWritable(vertex.getValue().get() / numEdges);
+       for (Edge<Text, DoubleWritable> edge: vertex.getEdges()) {
+         sendMessage(edge.getTargetVertexId(), message);
+       }
     } else {
+
+      Double toBeTruncated = new Double(vertex.getValue().get() * 100000000);
+      Double truncatedDouble = BigDecimal.valueOf(toBeTruncated)
+        .setScale(0, RoundingMode.HALF_UP)
+        .doubleValue();
+
+      vertex.setValue(new DoubleWritable(truncatedDouble));
       vertex.voteToHalt();
     }
   }  
